@@ -20,6 +20,7 @@ namespace LegoSetNotifier
                 { "f|data-file=", $"Data file path, default: {dataFilePath}", o => dataFilePath = o },
                 { "n|apprise-notifyurl=", $"Apprise notify url, default: {appriseNotifyUrl}", o => appriseNotifyUrl = o },
             };
+            options.Parse(args);
 
             var dataFirstTime = false;
             var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(dataFilePath);
