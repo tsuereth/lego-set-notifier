@@ -1,5 +1,8 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace LegoSetNotifier
 {
@@ -37,7 +40,7 @@ namespace LegoSetNotifier
 
         public async Task SendNewSetNotificationAsync(RebrickableData.LegoSet legoSet)
         {
-            var apprisePayload = new JsonObject()
+            var apprisePayloadObject = new JsonObject()
             {
                 ["type"] = "info",
                 ["format"] = "markdown",
@@ -49,7 +52,8 @@ namespace LegoSetNotifier
 
             using (var request = new HttpRequestMessage(HttpMethod.Post, this.notifyUrl))
             {
-                request.Content = JsonContent.Create(apprisePayload);
+                var apprisePayloadString = JsonSerializer.Serialize(apprisePayloadObject);
+                request.Content = new StringContent(apprisePayloadString, Encoding.UTF8, "application/json");
 
                 var response = await this.httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
