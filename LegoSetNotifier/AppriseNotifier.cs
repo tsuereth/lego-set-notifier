@@ -46,8 +46,8 @@ namespace LegoSetNotifier
                 ["format"] = "markdown",
                 ["title"] = $"New LEGO set {legoSet.Name}",
                 ["body"] = $"A new LEGO set {legoSet.ExtendedSetNumber} {legoSet.Name} is posted at [{legoSet.GetLegoShopUrl()}]({legoSet.GetLegoShopUrl()})",
-                ["tag"] = "all", // TODO: what values work here?
-                //["attach"] = legoSet.ImageUrl, TODO: investigate service errors with attachments
+                ["tag"] = "all",
+                ["attach"] = legoSet.ImageUrl,
             };
 
             using (var request = new HttpRequestMessage(HttpMethod.Post, this.notifyUrl))
