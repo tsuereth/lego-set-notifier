@@ -9,7 +9,7 @@ namespace LegoSetNotifier
     {
         static async Task<int> Main(string[] args)
         {
-            using var loggerFactory = LoggerFactory.Create(c => c.AddConsole());
+            using var loggerFactory = LoggerFactory.Create(c => c.AddSystemdConsole());
             var logger = loggerFactory.CreateLogger<Program>();
 
             var dataFilePath = "previouslySeen.json";
