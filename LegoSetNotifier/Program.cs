@@ -12,15 +12,23 @@ namespace LegoSetNotifier
             using var loggerFactory = LoggerFactory.Create(c => c.AddSystemdConsole());
             var logger = loggerFactory.CreateLogger<Program>();
 
+            var printHelp = false;
             var dataFilePath = "previouslySeen.json";
             var appriseNotifyUrl = string.Empty;
 
             var options = new OptionSet()
             {
+                { "help", "Print help text", _ => printHelp = true },
                 { "f|data-file=", $"Data file path, default: {dataFilePath}", o => dataFilePath = o },
                 { "n|apprise-notifyurl=", $"Apprise notify url, default: {appriseNotifyUrl}", o => appriseNotifyUrl = o },
             };
             options.Parse(args);
+
+            if (printHelp)
+            {
+                options.WriteOptionDescriptions(Console.Out);
+                return 0;
+            }
 
             var dataFirstTime = false;
             var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(dataFilePath);
