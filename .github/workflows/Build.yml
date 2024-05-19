@@ -27,9 +27,18 @@ jobs:
         run: |
           dotnet publish LegoSetNotifier/LegoSetNotifier.csproj --runtime linux-x64 -p:PublishSingleFile=true --self-contained true --output publish_output
 
+      - name: TagRelease
+        if: github.ref == 'refs/heads/main'
+        id: tag_release
+        run: |
+          echo "::set-output name=tag::$(date +"%Y%m%d").${{ github.sha }}"
+
       - name: ReleaseArtifacts
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ steps.tag_release.outputs.tag }}
           files: |
             publish_output/*
