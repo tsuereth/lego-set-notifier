@@ -10,6 +10,8 @@ on:
 jobs:
   Build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         id: tag_release
         run: |
-          echo "::set-output name=tag::$(date +"%Y%m%d").${{ github.sha }}"
+          echo "tag=$(date +%Y%m%d).${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: ReleaseArtifacts
         if: github.ref == 'refs/heads/main'
