@@ -63,7 +63,7 @@ namespace LegoSetNotifier
         public async Task UpdateSetsAsync(DateTimeOffset updatedTime, Dictionary<string, RebrickableData.LegoSet> legoSets)
         {
             // Ensure the filepath is writable before updating the current data.
-            using (var fileStream = File.Open(this.FilePath, FileMode.Truncate, FileAccess.Write))
+            using (var fileStream = File.Open(this.FilePath, FileMode.Create, FileAccess.Write))
             {
                 this.UpdatedTime = updatedTime;
                 this.Sets = legoSets;
