@@ -45,7 +45,7 @@ namespace LegoSetNotifier
                 ["type"] = "info",
                 ["format"] = "markdown",
                 ["title"] = $"New LEGO set {legoSet.Name}",
-                ["body"] = $"A new LEGO set {legoSet.ExtendedSetNumber} {legoSet.Name} is posted at [{legoSet.GetLegoShopUrl()}]({legoSet.GetLegoShopUrl()})",
+                ["body"] = $"A new LEGO set {legoSet.ExtendedSetNumber} {legoSet.Name} is posted: [Rebrickable]({legoSet.GetRebrickableUrl()}), [LEGO Shop]({legoSet.GetLegoShopUrl()})",
                 ["tag"] = "all",
                 ["attach"] = legoSet.ImageUrl,
             };

@@ -26,5 +26,12 @@
 
             return new Uri(urlString);
         }
+
+        public Uri GetRebrickableUrl()
+        {
+            var urlString = $"https://rebrickable.com/sets/{this.ExtendedSetNumber}/";
+
+            return new Uri(urlString);
+        }
     }
 }
