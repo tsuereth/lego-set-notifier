@@ -64,7 +64,7 @@ namespace LegoSetNotifier
         {
             var apprisePayloadObject = new JsonObject()
             {
-                ["type"] = "error",
+                ["type"] = "failure",
                 ["format"] = "text",
                 ["title"] = message,
                 ["body"] = $"{message}\n\n{ex}",
