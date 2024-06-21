@@ -40,6 +40,11 @@ namespace LegoSetNotifier
             }
         }
 
+        public string GetDataSourceName()
+        {
+            return this.FilePath;
+        }
+
         public Task<DateTimeOffset> GetUpdatedTimeAsync()
         {
             if (!this.UpdatedTime.HasValue)

@@ -38,6 +38,42 @@ namespace LegoSetNotifier
             GC.SuppressFinalize(this);
         }
 
+        private async Task SendJsonAsync(JsonObject json)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Post, this.notifyUrl))
+            {
+                var apprisePayloadString = JsonSerializer.Serialize(json);
+                request.Content = new StringContent(apprisePayloadString, Encoding.UTF8, "application/json");
+
+                var response = await this.httpClient.SendAsync(request);
+
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                try
+                {
+                    response.EnsureSuccessStatusCode();
+                }
+                catch (Exception ex) when (!string.IsNullOrEmpty(responseString))
+                {
+                    throw new AggregateException(responseString, ex);
+                }
+            }
+        }
+
+        public async Task SendErrorNotificationAsync(string message, Exception? ex)
+        {
+            var apprisePayloadObject = new JsonObject()
+            {
+                ["type"] = "failure",
+                ["format"] = "text",
+                ["title"] = message,
+                ["body"] = $"{message}\n\n{ex}",
+                ["tag"] = "all",
+            };
+
+            await this.SendJsonAsync(apprisePayloadObject);
+        }
+
         public async Task SendNewSetNotificationAsync(RebrickableData.LegoSet legoSet)
         {
             var apprisePayloadObject = new JsonObject()
@@ -50,14 +86,7 @@ namespace LegoSetNotifier
                 ["attach"] = legoSet.ImageUrl,
             };
 
-            using (var request = new HttpRequestMessage(HttpMethod.Post, this.notifyUrl))
-            {
-                var apprisePayloadString = JsonSerializer.Serialize(apprisePayloadObject);
-                request.Content = new StringContent(apprisePayloadString, Encoding.UTF8, "application/json");
-
-                var response = await this.httpClient.SendAsync(request);
-                response.EnsureSuccessStatusCode();
-            }
+            await this.SendJsonAsync(apprisePayloadObject);
         }
     }
 }
