@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SetupDotNet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: TestLegoSetNotifier
+        run: |
+          dotnet test LegoSetNotifier.Test/LegoSetNotifier.Test.csproj
