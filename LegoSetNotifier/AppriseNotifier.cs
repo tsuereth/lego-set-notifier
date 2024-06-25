@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using LegoSetNotifier.AppriseApi;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -6,87 +8,51 @@ using System.Text.Json.Serialization;
 
 namespace LegoSetNotifier
 {
-    public class AppriseNotifier : INotifier, IDisposable
+    public class AppriseNotifier : INotifier
     {
-        private string notifyUrl;
-        private HttpClient httpClient;
-        private bool disposedValue;
+        private IAppriseApiClient apiClient;
+        private string notifyKey;
 
-        public AppriseNotifier(string notifyUrl)
+        public AppriseNotifier(IAppriseApiClient apiClient, string notifyKey)
         {
-            this.notifyUrl = notifyUrl;
-            this.httpClient = new HttpClient();
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!this.disposedValue)
-            {
-                if (disposing)
-                {
-                    this.httpClient.Dispose();
-                }
-
-                this.disposedValue = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        private async Task SendJsonAsync(JsonObject json)
-        {
-            using (var request = new HttpRequestMessage(HttpMethod.Post, this.notifyUrl))
-            {
-                var apprisePayloadString = JsonSerializer.Serialize(json);
-                request.Content = new StringContent(apprisePayloadString, Encoding.UTF8, "application/json");
-
-                var response = await this.httpClient.SendAsync(request);
-
-                var responseString = await response.Content.ReadAsStringAsync();
-
-                try
-                {
-                    response.EnsureSuccessStatusCode();
-                }
-                catch (Exception ex) when (!string.IsNullOrEmpty(responseString))
-                {
-                    throw new AggregateException(responseString, ex);
-                }
-            }
+            this.apiClient = apiClient;
+            this.notifyKey = notifyKey;
         }
 
         public async Task SendErrorNotificationAsync(string message, Exception? ex)
         {
-            var apprisePayloadObject = new JsonObject()
+            var notification = new AppriseApiNotifyContent()
             {
-                ["type"] = "failure",
-                ["format"] = "text",
-                ["title"] = message,
-                ["body"] = $"{message}\n\n{ex}",
-                ["tag"] = "all",
+                Type = "failure",
+                Title = message,
+                Body = $"{message}\n\n{ex}",
             };
 
-            await this.SendJsonAsync(apprisePayloadObject);
+            await this.apiClient.NotifyAsync(this.notifyKey, notification);
         }
 
         public async Task SendNewSetNotificationAsync(RebrickableData.LegoSet legoSet)
         {
-            var apprisePayloadObject = new JsonObject()
+            var notification = new AppriseApiNotifyContent()
             {
-                ["type"] = "info",
-                ["format"] = "markdown",
-                ["title"] = $"New LEGO set {legoSet.Name}",
-                ["body"] = $"A new LEGO set {legoSet.ExtendedSetNumber} {legoSet.Name} is posted: [Rebrickable]({legoSet.GetRebrickableUrl()}), [LEGO Shop]({legoSet.GetLegoShopUrl()})",
-                ["tag"] = "all",
-                ["attach"] = legoSet.ImageUrl,
+                Title = $"New LEGO set {legoSet.Name}",
+                Format = "markdown",
+                Body = $"A new LEGO set {legoSet.ExtendedSetNumber} {legoSet.Name} is posted: [Rebrickable]({legoSet.GetRebrickableUrl()}), [LEGO Shop]({legoSet.GetLegoShopUrl()})",
+                Attach = legoSet.ImageUrl,
             };
 
-            await this.SendJsonAsync(apprisePayloadObject);
+            try
+            {
+                await this.apiClient.NotifyAsync(this.notifyKey, notification);
+            }
+            catch (AppriseApiException ex) when (ex.ErrorMessage.Equals("Bad Attachment", StringComparison.Ordinal))
+            {
+                // A very special case: if the notification failed due to "Bad Attachment" then retry without it.
+                notification.Body += $"\n\nA bad-attachment error was encountered for {notification.Attach}";
+                notification.Attach = null;
+
+                await this.apiClient.NotifyAsync(this.notifyKey, notification);
+            }
         }
     }
 }
