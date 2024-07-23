@@ -95,6 +95,39 @@ namespace LegoSetNotifier.Test
         }
 
         [TestMethod]
+        public async Task TestNewNonPurchaseableSetNoNotificationAsync()
+        {
+            var testLegoSet = new LegoSet()
+            {
+                // Indicate the set is non-pucrhaseable with a set number > 5 digits.
+                ExtendedSetNumber = "1234567890-1",
+            };
+
+            Assert.IsFalse(testLegoSet.IsPurchaseableSet());
+
+            var logger = new TestLogger();
+
+            var mockData = Substitute.For<IPreviouslySeenData>();
+            mockData.GetDataSourceName().Returns("MockData");
+            mockData.GetUpdatedTimeAsync().Returns(Task.FromResult(DateTimeOffset.UtcNow - TimeSpan.FromHours(1)));
+            mockData.GetSetsAsync().Returns(Task.FromResult(new Dictionary<string, LegoSet>()));
+
+            var mockClient = Substitute.For<IRebrickableDataClient>();
+            mockClient.GetSetsUpdatedTimeAsync().Returns(Task.FromResult(DateTimeOffset.UtcNow));
+            mockClient.GetSetsAsync().Returns(Task.FromResult(new List<LegoSet>() { testLegoSet }));
+
+            var mockNotifier = Substitute.For<INotifier>();
+
+            var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
+            await legoSetNotifier.DetectNewSetsAsync();
+
+            Assert.AreEqual(0, logger.GetLogs(LogLevel.Warning).Count());
+            Assert.AreEqual(0, logger.GetLogs(LogLevel.Error).Count());
+            await mockNotifier.DidNotReceive().SendErrorNotificationAsync(Arg.Any<string>(), Arg.Any<Exception?>());
+            await mockNotifier.DidNotReceive().SendNewSetNotificationAsync(Arg.Any<LegoSet>());
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(InvalidOperationException))]
         public async Task TestExceptionUpdatingDataAsync()
         {

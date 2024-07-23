@@ -52,6 +52,17 @@ namespace LegoSetNotifier
                             ++newSetsCount;
                             var newSet = liveDataSets[extendedSetNumber];
 
+                            if (!newSet.IsPurchaseableSet())
+                            {
+                                // Don't send notifications for non-purchaseable sets (like merch).
+                                this.logger.LogInformation(
+                                    "New non-purchaseable set found in live data: {ExtendedSetNumber} {SetName}",
+                                    newSet.ExtendedSetNumber,
+                                    newSet.Name);
+
+                                continue;
+                            }
+
                             if (this.notifier != null)
                             {
                                 try

@@ -19,6 +19,14 @@
             return this.ExtendedSetNumber.Split('-')[0];
         }
 
+        public bool IsPurchaseableSet()
+        {
+            // As of writing, there isn't a discrete data point separating purchaseable LEGO sets
+            // from non-purchasable bonus items or transmedia merch (like backpacks).
+            // But, all purchaseable sets do have a five-digit number!
+            return this.GetShortSetNumber().Length == 5;
+        }
+
         public Uri GetLegoShopUrl()
         {
             var shortSetNumber = this.GetShortSetNumber();
