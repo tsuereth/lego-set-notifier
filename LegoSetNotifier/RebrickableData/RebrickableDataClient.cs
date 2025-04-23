@@ -59,15 +59,19 @@ namespace LegoSetNotifier.RebrickableData
 
         private Uri GetSetsDownloadUrl(IDocument downloadsPage)
         {
-            var element = downloadsPage.All.Where(e =>
+            var setsCsvGzipAnchors = downloadsPage.All.Where(e =>
                 e.LocalName.Equals("a", StringComparison.Ordinal) &&
-                e.InnerHtml.Equals("sets.csv.gz", StringComparison.Ordinal)).FirstOrDefault();
-            if (element == null)
+                (e.GetAttribute("href") ?? string.Empty).Contains("/sets.csv.gz"));
+            if (setsCsvGzipAnchors.Count() == 0)
             {
                 throw new InvalidDataException($"Couldn't find sets download anchor element at {DownloadsPageUrl}");
             }
+            else if (setsCsvGzipAnchors.Count() > 1)
+            {
+                throw new InvalidDataException($"Found multiple ambiguous sets download anchor elements at {DownloadsPageUrl}");
+            }
 
-            var href = element.GetAttribute("href");
+            var href = setsCsvGzipAnchors.First().GetAttribute("href");
             if (href == null)
             {
                 throw new InvalidDataException($"Missing href attribute in sets download anchor element at {DownloadsPageUrl}");
