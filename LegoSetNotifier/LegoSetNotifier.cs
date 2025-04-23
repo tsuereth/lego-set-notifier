@@ -78,13 +78,6 @@ namespace LegoSetNotifier
                                     await this.notifier.SendErrorNotificationAsync(setNotificationFailure, ex);
                                 }
                             }
-                            else
-                            {
-                                this.logger.LogInformation(
-                                    "New set found in live data: {ExtendedSetNumber} {SetName}",
-                                    newSet.ExtendedSetNumber,
-                                    newSet.Name);
-                            }
                         }
                     }
 
