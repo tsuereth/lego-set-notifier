@@ -128,7 +128,6 @@ namespace LegoSetNotifier.Test
         }
 
         [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
         public async Task TestExceptionUpdatingDataAsync()
         {
             var testLegoSet = new LegoSet()
@@ -151,8 +150,12 @@ namespace LegoSetNotifier.Test
             var mockNotifier = Substitute.For<INotifier>();
 
             var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
+
             // This should throw an exception, which the real program should handle by logging ... or notifying!
-            await legoSetNotifier.DetectNewSetsAsync();
+            await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
+            {
+                await legoSetNotifier.DetectNewSetsAsync();
+            });
         }
 
         [TestMethod]
