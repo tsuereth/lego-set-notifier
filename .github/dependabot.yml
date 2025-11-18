@@ -9,11 +9,7 @@ updates:
     schedule:
       interval: daily
   - package-ecosystem: nuget
-    directory: "/LegoSetNotifier"
-    schedule:
-      interval: daily
-  - package-ecosystem: nuget
-    directory: "/LegoSetNotifier.Test"
+    directory: "/"
     groups:
       all:
         patterns:
