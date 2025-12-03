@@ -39,10 +39,12 @@ namespace LegoSetNotifier
             {
                 var liveDataSetsList = await this.dataClient.GetSetsAsync();
                 var liveDataSets = liveDataSetsList.ToDictionary(s => s.ExtendedSetNumber, s => s);
+                var seenSets = new Dictionary<string, LegoSet>();
 
+                var notificationsFailed = false;
                 if (!dataFirstTime)
                 {
-                    var seenSets = await this.seenData.GetSetsAsync();
+                    seenSets = await this.seenData.GetSetsAsync();
 
                     var newSetsCount = 0;
                     foreach (var extendedSetNumber in liveDataSets.Keys)
@@ -61,6 +63,7 @@ namespace LegoSetNotifier
                             if (!newSet.IsPurchaseableSet())
                             {
                                 // Don't send notifications for non-purchaseable sets (like merch).
+                                seenSets.Add(extendedSetNumber, newSet);
                                 continue;
                             }
 
@@ -69,13 +72,31 @@ namespace LegoSetNotifier
                                 try
                                 {
                                     await this.notifier.SendNewSetNotificationAsync(newSet);
+                                    seenSets.Add(extendedSetNumber, newSet);
                                 }
                                 catch (Exception ex)
                                 {
                                     var setNotificationFailure = $"Failed to send notification for new set {newSet.ExtendedSetNumber} {newSet.Name}";
                                     this.logger.LogError(ex, "{ErrorMessage}", setNotificationFailure);
 
-                                    await this.notifier.SendErrorNotificationAsync(setNotificationFailure, ex);
+                                    if (ex is HttpRequestException)
+                                    {
+                                        // An HTTP exception when sending the notification means that we need to try again later.
+                                        notificationsFailed = true;
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            await this.notifier.SendErrorNotificationAsync(setNotificationFailure, ex);
+                                            seenSets.Add(extendedSetNumber, newSet);
+                                        }
+                                        catch (Exception moreEx)
+                                        {
+                                            this.logger.LogError(moreEx, "Failed to send error notification");
+                                            notificationsFailed = true;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -87,10 +108,21 @@ namespace LegoSetNotifier
                             liveDataUpdated);
                 }
 
-                this.logger.LogDebug(
-                    "Updating data file at {DataSource}",
-                    this.seenData.GetDataSourceName());
-                await this.seenData.UpdateSetsAsync(liveDataUpdated, liveDataSets);
+                if (!notificationsFailed)
+                {
+                    this.logger.LogDebug(
+                        "Updating data file at {DataSource}",
+                        this.seenData.GetDataSourceName());
+                    await this.seenData.UpdateSetsAsync(liveDataUpdated, liveDataSets);
+                }
+                else
+                {
+                    this.logger.LogWarning(
+                        "Some notifications failed, partially updating data file at {DataSource}",
+                        this.seenData.GetDataSourceName());
+                    // Don't update the updated-timestamp, because the next attempt should see current sets as "new" again.
+                    await this.seenData.UpdateSetsAsync(seenDataUpdated, seenSets);
+                }
             }
             else
             {
