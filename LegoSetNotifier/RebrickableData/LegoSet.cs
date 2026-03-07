@@ -1,7 +1,11 @@
-﻿namespace LegoSetNotifier.RebrickableData
+﻿using System.Text.RegularExpressions;
+
+namespace LegoSetNotifier.RebrickableData
 {
     public class LegoSet
     {
+        private readonly Regex PurchaseableSetNumberPattern = new Regex(@"^[0-9]{5}$", RegexOptions.Compiled);
+
         public string ExtendedSetNumber { get; set; } = string.Empty;
 
         public string Name { get; set; } = string.Empty;
@@ -24,7 +28,7 @@
             // As of writing, there isn't a discrete data point separating purchaseable LEGO sets
             // from non-purchasable bonus items or transmedia merch (like backpacks).
             // But, all purchaseable sets do have a five-digit number!
-            return this.GetShortSetNumber().Length == 5;
+            return PurchaseableSetNumberPattern.IsMatch(this.GetShortSetNumber());
         }
 
         public Uri GetLegoShopUrl()
