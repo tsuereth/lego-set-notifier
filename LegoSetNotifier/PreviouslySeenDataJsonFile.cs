@@ -1,15 +1,18 @@
-﻿using System.Text.Json;
+﻿using LegoSetNotifier.RebrickableData;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace LegoSetNotifier
 {
     public class PreviouslySeenDataJsonFile : IPreviouslySeenData
     {
-        [JsonPropertyName("updatedTime")]
-        public DateTimeOffset? UpdatedTime { get; set; } = null;
+        private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
+        {
+            IncludeFields = true,
+        };
 
         [JsonPropertyName("sets")]
-        public Dictionary<string, RebrickableData.LegoSet>? Sets { get; set; } = null;
+        public Dictionary<string, PreviouslySeenLegoSet>? Sets { get; set; } = null;
 
         [JsonIgnore]
         private string FilePath = string.Empty;
@@ -45,34 +48,41 @@ namespace LegoSetNotifier
             return this.FilePath;
         }
 
-        public Task<DateTimeOffset> GetUpdatedTimeAsync()
-        {
-            if (!this.UpdatedTime.HasValue)
-            {
-                return Task.FromResult(DateTimeOffset.MinValue);
-            }
-
-            return Task.FromResult(this.UpdatedTime.Value);
-        }
-
-        public Task<Dictionary<string, RebrickableData.LegoSet>> GetSetsAsync()
+        public Task<Dictionary<string, PreviouslySeenLegoSet>> GetSetsAsync()
         {
             if (this.Sets == null)
             {
-                return Task.FromResult(new Dictionary<string, RebrickableData.LegoSet>());
+                return Task.FromResult(new Dictionary<string, PreviouslySeenLegoSet>());
             }
 
             return Task.FromResult(this.Sets);
         }
 
-        public async Task UpdateSetsAsync(DateTimeOffset updatedTime, Dictionary<string, RebrickableData.LegoSet> legoSets)
+        public async Task UpdateSetsAsync(Dictionary<string, PreviouslySeenLegoSet> legoSets)
         {
             // Ensure the filepath is writable before updating the current data.
             using (var fileStream = File.Open(this.FilePath, FileMode.Create, FileAccess.Write))
             {
-                this.UpdatedTime = updatedTime;
                 this.Sets = legoSets;
 
+                await JsonSerializer.SerializeAsync(fileStream, this);
+            }
+        }
+
+        public async Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, HashSet<string> legoSetNumbers)
+        {
+            if (this.Sets == null)
+            {
+                throw new InvalidDataException("Internal sets data was unexpectedly null");
+            }
+
+            foreach (var legoSetNumber in legoSetNumbers)
+            {
+                this.Sets[legoSetNumber].NotifiedAtTime = notifiedAtTime;
+            }
+
+            using (var fileStream = File.Open(this.FilePath, FileMode.Create, FileAccess.Write))
+            {
                 await JsonSerializer.SerializeAsync(fileStream, this);
             }
         }

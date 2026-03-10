@@ -4,10 +4,10 @@
     {
         public string GetDataSourceName();
 
-        public Task<DateTimeOffset> GetUpdatedTimeAsync();
+        public Task<Dictionary<string, PreviouslySeenLegoSet>> GetSetsAsync();
 
-        public Task<Dictionary<string, RebrickableData.LegoSet>> GetSetsAsync();
+        public Task UpdateSetsAsync(Dictionary<string, PreviouslySeenLegoSet> legoSets);
 
-        public Task UpdateSetsAsync(DateTimeOffset updatedTime, Dictionary<string, RebrickableData.LegoSet> legoSets);
+        public Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, HashSet<string> legoSetNumbers);
     }
 }

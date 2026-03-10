@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace LegoSetNotifier.RebrickableData
 {
@@ -6,17 +7,35 @@ namespace LegoSetNotifier.RebrickableData
     {
         private readonly Regex PurchaseableSetNumberPattern = new Regex(@"^[0-9]{5}$", RegexOptions.Compiled);
 
+        [JsonPropertyName("ExtendedSetNumber")]
         public string ExtendedSetNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("Name")]
         public string Name { get; set; } = string.Empty;
 
+        [JsonPropertyName("ReleaseYear")]
         public int ReleaseYear { get; set; } = 0;
 
+        [JsonPropertyName("ThemeId")]
         public int ThemeId { get; set; } = 0;
 
+        [JsonPropertyName("NumberOfParts")]
         public int NumberOfParts { get; set; } = 0;
 
+        [JsonPropertyName("ImageUrl")]
         public string ImageUrl { get; set; } = string.Empty;
+
+        public LegoSet() { }
+
+        public LegoSet(LegoSet legoSet)
+        {
+            this.ExtendedSetNumber = legoSet.ExtendedSetNumber;
+            this.Name = legoSet.Name;
+            this.ReleaseYear = legoSet.ReleaseYear;
+            this.ThemeId = legoSet.ThemeId;
+            this.NumberOfParts = legoSet.NumberOfParts;
+            this.ImageUrl = legoSet.ImageUrl;
+        }
 
         public string GetShortSetNumber()
         {

@@ -19,8 +19,34 @@ namespace LegoSetNotifier.AppriseApi
         [JsonPropertyName("format")]
         public string Format { get; set; } = "text";
 
+        [JsonIgnore]
+        public List<string> Attachments { get; set; } = new List<string>();
+
         [JsonPropertyName("attach")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Attach { get; set; } = null;
+        public List<string>? AttachmentsSerialized
+        {
+            get
+            {
+                if (this.Attachments == null || this.Attachments.Count == 0)
+                {
+                    return null;
+                }
+
+                return this.Attachments;
+            }
+
+            set
+            {
+                if (value == null)
+                {
+                    this.Attachments = new List<string>();
+                }
+                else
+                {
+                    this.Attachments = value;
+                }
+            }
+        }
     }
 }

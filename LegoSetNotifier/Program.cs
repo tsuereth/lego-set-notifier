@@ -51,18 +51,23 @@ namespace LegoSetNotifier
             INotifier? notifier = null;
             try
             {
-                var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(dataFilePath);
-
                 if (!string.IsNullOrEmpty(appriseApiBaseUrl))
                 {
                     appriseClient = new AppriseApiClient(appriseApiBaseUrl);
                     notifier = new AppriseNotifier(appriseClient, appriseApiConfigKey);
                 }
 
+                var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(dataFilePath);
+
                 using (var dataClient = new RebrickableDataClient())
                 {
                     var legoSetNotifier = new LegoSetNotifier(logger, seenData, dataClient, notifier);
                     await legoSetNotifier.DetectNewSetsAsync();
+
+                    if (notifier != null)
+                    {
+                        await legoSetNotifier.SendNewSetNotificationsAsync();
+                    }
                 }
             }
             catch (Exception ex)

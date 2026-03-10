@@ -24,111 +24,85 @@ namespace LegoSetNotifier
 
         public async Task DetectNewSetsAsync()
         {
-            var dataFirstTime = false;
-            var seenDataUpdated = await this.seenData.GetUpdatedTimeAsync();
-            if (seenDataUpdated == DateTimeOffset.MinValue)
+            var liveDataSetsList = await this.dataClient.GetSetsAsync();
+            var liveDataSets = liveDataSetsList.ToDictionary(s => s.ExtendedSetNumber, s => s);
+            var liveDataSeenAtTime = this.dataClient.GetSetsUpdatedTime();
+            if (liveDataSeenAtTime == null)
             {
-                this.logger.LogDebug(
-                    "Data file at {DataSource} appears empty, skipping notifications for this first-time data check.",
-                    this.seenData.GetDataSourceName());
-                dataFirstTime = true;
+                throw new InvalidDataException("After retrieving current sets from live data, the updated time was null");
             }
 
-            var liveDataUpdated = await this.dataClient.GetSetsUpdatedTimeAsync();
-            if (dataFirstTime || liveDataUpdated > seenDataUpdated)
+            var seenSets = await this.seenData.GetSetsAsync();
+
+            var newSetsCount = 0;
+            foreach (var extendedSetNumber in liveDataSets.Keys)
             {
-                var liveDataSetsList = await this.dataClient.GetSetsAsync();
-                var liveDataSets = liveDataSetsList.ToDictionary(s => s.ExtendedSetNumber, s => s);
-                var seenSets = new Dictionary<string, LegoSet>();
-
-                var notificationsFailed = false;
-                if (!dataFirstTime)
+                if (!seenSets.ContainsKey(extendedSetNumber))
                 {
-                    seenSets = await this.seenData.GetSetsAsync();
-
-                    var newSetsCount = 0;
-                    foreach (var extendedSetNumber in liveDataSets.Keys)
-                    {
-                        if (!seenSets.ContainsKey(extendedSetNumber))
-                        {
-                            ++newSetsCount;
-                            var newSet = liveDataSets[extendedSetNumber];
-
-                            this.logger.LogInformation(
-                                "New {PurchaseabilityType} found in live data: {ExtendedSetNumber} {SetName}",
-                                newSet.IsPurchaseableSet() ? "set" : "non-purchaseable set",
-                                newSet.ExtendedSetNumber,
-                                newSet.Name);
-
-                            if (!newSet.IsPurchaseableSet())
-                            {
-                                // Don't send notifications for non-purchaseable sets (like merch).
-                                seenSets.Add(extendedSetNumber, newSet);
-                                continue;
-                            }
-
-                            if (this.notifier != null)
-                            {
-                                try
-                                {
-                                    await this.notifier.SendNewSetNotificationAsync(newSet);
-                                    seenSets.Add(extendedSetNumber, newSet);
-                                }
-                                catch (Exception ex)
-                                {
-                                    var setNotificationFailure = $"Failed to send notification for new set {newSet.ExtendedSetNumber} {newSet.Name}";
-                                    this.logger.LogError(ex, "{ErrorMessage}", setNotificationFailure);
-
-                                    if (ex is HttpRequestException)
-                                    {
-                                        // An HTTP exception when sending the notification means that we need to try again later.
-                                        notificationsFailed = true;
-                                    }
-                                    else
-                                    {
-                                        try
-                                        {
-                                            await this.notifier.SendErrorNotificationAsync(setNotificationFailure, ex);
-                                            seenSets.Add(extendedSetNumber, newSet);
-                                        }
-                                        catch (Exception moreEx)
-                                        {
-                                            this.logger.LogError(moreEx, "Failed to send error notification");
-                                            notificationsFailed = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    ++newSetsCount;
+                    var newSet = new PreviouslySeenLegoSet(liveDataSets[extendedSetNumber], liveDataSeenAtTime.Value);
 
                     this.logger.LogInformation(
-                        "Found {NumberOfNewSets} new sets in live data as of {LastUpdatedTime}",
-                            newSetsCount,
-                            liveDataUpdated);
-                }
+                        "New {PurchaseabilityType} found in live data: {ExtendedSetNumber} {SetName}",
+                        newSet.IsPurchaseableSet() ? "set" : "non-purchaseable set",
+                        newSet.ExtendedSetNumber,
+                        newSet.Name);
 
-                if (!notificationsFailed)
+                    seenSets.Add(extendedSetNumber, newSet);
+                }
+            }
+
+            this.logger.LogInformation(
+                "Found {NumberOfNewSets} new sets in live data as of {LastUpdatedTime}",
+                    newSetsCount,
+                    liveDataSeenAtTime.Value);
+
+            this.logger.LogDebug(
+                "Updating data file at {DataSource}",
+                this.seenData.GetDataSourceName());
+            await this.seenData.UpdateSetsAsync(seenSets);
+        }
+
+        public async Task SendNewSetNotificationsAsync()
+        {
+            if (this.notifier == null)
+            {
+                return;
+            }
+
+            var seenSets = await this.seenData.GetSetsAsync();
+            var notYetNotifiedSets = seenSets.Select(p => p.Value).Where(s => s.IsPurchaseableSet() && s.NotifiedAtTime == null);
+            if (!notYetNotifiedSets.Any())
+            {
+                return;
+            }
+
+            try
+            {
+                var notifiedAtTime = DateTimeOffset.UtcNow;
+                var notifiedSetNumbers = await this.notifier.SendNewSetsNotificationAsync(notYetNotifiedSets);
+                if (notifiedSetNumbers.Any())
                 {
-                    this.logger.LogDebug(
-                        "Updating data file at {DataSource}",
-                        this.seenData.GetDataSourceName());
-                    await this.seenData.UpdateSetsAsync(liveDataUpdated, liveDataSets);
+                    await this.seenData.MarkSetsAsNotifiedAsync(notifiedAtTime, notifiedSetNumbers);
+
+                    this.logger.LogInformation(
+                        "Sent notification(s) of {NumberOfNotifiedSets} new sets as of {NotifiedAtTime}",
+                            notifiedSetNumbers.Count,
+                            notifiedAtTime);
                 }
                 else
                 {
-                    this.logger.LogWarning(
-                        "Some notifications failed, partially updating data file at {DataSource}",
-                        this.seenData.GetDataSourceName());
-                    // Don't update the updated-timestamp, because the next attempt should see current sets as "new" again.
-                    await this.seenData.UpdateSetsAsync(seenDataUpdated, seenSets);
+                    this.logger.LogError(
+                        "Failed to send notification(s) for {NumberOfNotYetNotifiedSets} new sets as of {NotifiedAtTime}",
+                            notYetNotifiedSets.Count(),
+                            notifiedAtTime);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                this.logger.LogDebug(
-                    "Live data is not newer than seen data, last updated {LastUpdatedTime}",
-                    liveDataUpdated);
+                const string exceptionErrorMessage = "Exception sending notification(s) of new sets";
+                this.logger.LogError(ex, exceptionErrorMessage);
+                await notifier.SendErrorNotificationAsync($"An exception occurred while attempting to send notification(s) of {notYetNotifiedSets.Count()} new sets", ex);
             }
         }
     }

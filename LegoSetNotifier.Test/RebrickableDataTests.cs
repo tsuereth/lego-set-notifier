@@ -1,7 +1,4 @@
 ﻿using LegoSetNotifier.RebrickableData;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace LegoSetNotifier.Test
 {

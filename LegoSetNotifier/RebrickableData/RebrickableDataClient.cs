@@ -1,29 +1,22 @@
-﻿using System.Data.SqlTypes;
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO.Compression;
-using System.Net;
-using AngleSharp;
-using AngleSharp.Dom;
 using CsvHelper;
 
 namespace LegoSetNotifier.RebrickableData
 {
     public class RebrickableDataClient : IRebrickableDataClient, IDisposable
     {
-        private const string DownloadsPageUrl = "https://rebrickable.com/downloads/";
+        // Source: https://rebrickable.com/downloads/
+        private const string SetsCsvGzipUrl = "https://cdn.rebrickable.com/media/downloads/sets.csv.gz";
 
-        private IConfiguration htmlConfig;
-        private IBrowsingContext htmlContext;
         private HttpClient httpClient;
 
-        private IDocument? downloadsPage = null;
         private byte[]? setsCsvBytes = null;
+        private DateTimeOffset? setsCsvUpdatedTime = null;
         private bool disposedValue;
 
         public RebrickableDataClient()
         {
-            this.htmlConfig = Configuration.Default.WithDefaultLoader();
-            this.htmlContext = BrowsingContext.New(htmlConfig);
             this.httpClient = new HttpClient();
         }
 
@@ -47,48 +40,11 @@ namespace LegoSetNotifier.RebrickableData
             GC.SuppressFinalize(this);
         }
 
-        private async Task<IDocument> GetDownloadsPageAsync()
-        {
-            if (this.downloadsPage == null)
-            {
-                this.downloadsPage = await this.htmlContext.OpenAsync(DownloadsPageUrl);
-            }
-
-            return this.downloadsPage;
-        }
-
-        private Uri GetSetsDownloadUrl(IDocument downloadsPage)
-        {
-            var setsCsvGzipAnchors = downloadsPage.All.Where(e =>
-                e.LocalName.Equals("a", StringComparison.Ordinal) &&
-                (e.GetAttribute("href") ?? string.Empty).Contains("/sets.csv.gz"));
-            if (setsCsvGzipAnchors.Count() == 0)
-            {
-                throw new InvalidDataException($"Couldn't find sets download anchor element at {DownloadsPageUrl}");
-            }
-            else if (setsCsvGzipAnchors.Count() > 1)
-            {
-                throw new InvalidDataException($"Found multiple ambiguous sets download anchor elements at {DownloadsPageUrl}");
-            }
-
-            var href = setsCsvGzipAnchors.First().GetAttribute("href");
-            if (href == null)
-            {
-                throw new InvalidDataException($"Missing href attribute in sets download anchor element at {DownloadsPageUrl}");
-            }
-
-            var url = new Uri(href);
-            return url;
-        }
-
         private async Task<byte[]> GetSetsCsvBytesAsync()
         {
             if (this.setsCsvBytes == null)
             {
-                var page = await this.GetDownloadsPageAsync();
-                var url = this.GetSetsDownloadUrl(page);
-
-                var httpResponse = await this.httpClient.GetAsync(url);
+                var httpResponse = await this.httpClient.GetAsync(SetsCsvGzipUrl);
                 httpResponse.EnsureSuccessStatusCode();
 
                 using (var responseStream = await httpResponse.Content.ReadAsStreamAsync())
@@ -98,29 +54,11 @@ namespace LegoSetNotifier.RebrickableData
                     gunzipStream.CopyTo(writeBytesStream);
                     this.setsCsvBytes = writeBytesStream.ToArray();
                 }
+
+                this.setsCsvUpdatedTime = DateTimeOffset.UtcNow;
             }
 
             return this.setsCsvBytes;
-        }
-
-        public async Task<DateTimeOffset> GetSetsUpdatedTimeAsync()
-        {
-            var page = await this.GetDownloadsPageAsync();
-            var url = this.GetSetsDownloadUrl(page);
-
-            // The URL is expected to have a timestamp in the querystring, like:
-            // https://cdn.rebrickable.com/media/downloads/sets.csv.gz?1715448890.1912346
-            var querystring = url.Query;
-            if (querystring.Length < 1 || querystring[0] != '?')
-            {
-                throw new InvalidDataException($"Unexpected empty or malformed querystring in sets download anchor element href: {url}");
-            }
-
-            var timestampString = querystring.Substring(1);
-            var timestampSeconds = float.Parse(timestampString, CultureInfo.InvariantCulture);
-            var timestampMs = Convert.ToInt64(timestampSeconds * 1000.0);
-
-            return DateTimeOffset.FromUnixTimeMilliseconds(timestampMs);
         }
 
         public async Task<List<LegoSet>> GetSetsAsync()
@@ -137,10 +75,15 @@ namespace LegoSetNotifier.RebrickableData
             }
         }
 
+        public DateTimeOffset? GetSetsUpdatedTime()
+        {
+            return this.setsCsvUpdatedTime;
+        }
+
         public void FlushCache()
         {
-            this.downloadsPage = null;
             this.setsCsvBytes = null;
+            this.setsCsvUpdatedTime = null;
         }
     }
 }

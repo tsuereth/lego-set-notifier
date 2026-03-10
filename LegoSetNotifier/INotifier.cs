@@ -2,8 +2,8 @@
 {
     public interface INotifier
     {
-        public Task SendErrorNotificationAsync(string message, Exception? ex);
+        public Task<bool> SendErrorNotificationAsync(string message, Exception? ex);
 
-        public Task SendNewSetNotificationAsync(RebrickableData.LegoSet legoSet);
+        public Task<HashSet<string>> SendNewSetsNotificationAsync(IEnumerable<RebrickableData.LegoSet> legoSets);
     }
 }
