@@ -69,7 +69,7 @@ namespace LegoSetNotifier
             }
         }
 
-        public async Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, HashSet<string> legoSetNumbers)
+        public async Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, ISet<string> legoSetNumbers)
         {
             if (this.Sets == null)
             {

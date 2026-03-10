@@ -77,32 +77,36 @@ namespace LegoSetNotifier
                 return;
             }
 
-            try
+            var notifications = LegoSetBatchNotification.BuildNotifications(this.notifier, notYetNotifiedSets);
+            foreach (var notification in notifications)
             {
-                var notifiedAtTime = DateTimeOffset.UtcNow;
-                var notifiedSetNumbers = await this.notifier.SendNewSetsNotificationAsync(notYetNotifiedSets);
-                if (notifiedSetNumbers.Any())
+                try
                 {
-                    await this.seenData.MarkSetsAsNotifiedAsync(notifiedAtTime, notifiedSetNumbers);
+                    var notificationSuccess = await this.notifier.SendLegoSetBatchNotificationAsync(notification);
+                    if (notificationSuccess)
+                    {
+                        var notifiedAtTime = DateTimeOffset.UtcNow;
+                        var notifiedSetNumbers = notification.GetLegoSetNumbers();
+                        await this.seenData.MarkSetsAsNotifiedAsync(notifiedAtTime, notifiedSetNumbers);
 
-                    this.logger.LogInformation(
-                        "Sent notification(s) of {NumberOfNotifiedSets} new sets as of {NotifiedAtTime}",
+                        this.logger.LogInformation(
+                            "Sent notification(s) of {NumberOfNotifiedSets} new sets as of {NotifiedAtTime}",
                             notifiedSetNumbers.Count,
                             notifiedAtTime);
+                    }
+                    else
+                    {
+                        this.logger.LogError(
+                            "Failed to send notification(s) for {NumberOfNotYetNotifiedSets} new sets",
+                            notYetNotifiedSets.Count());
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    this.logger.LogError(
-                        "Failed to send notification(s) for {NumberOfNotYetNotifiedSets} new sets as of {NotifiedAtTime}",
-                            notYetNotifiedSets.Count(),
-                            notifiedAtTime);
+                    const string exceptionErrorMessage = "Exception sending notification(s) of new sets";
+                    this.logger.LogError(ex, exceptionErrorMessage);
+                    await notifier.SendErrorNotificationAsync($"An exception occurred while attempting to send notification(s) of {notYetNotifiedSets.Count()} new sets", ex);
                 }
-            }
-            catch (Exception ex)
-            {
-                const string exceptionErrorMessage = "Exception sending notification(s) of new sets";
-                this.logger.LogError(ex, exceptionErrorMessage);
-                await notifier.SendErrorNotificationAsync($"An exception occurred while attempting to send notification(s) of {notYetNotifiedSets.Count()} new sets", ex);
             }
         }
     }

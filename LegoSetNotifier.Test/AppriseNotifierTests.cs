@@ -10,35 +10,36 @@ namespace LegoSetNotifier.Test
     public class AppriseNotifierTests
     {
         [TestMethod]
-        public async Task TestNewSetsNotificationNoExceptionAsync()
+        public async Task TestNotificationNoExceptionAsync()
         {
-            var testLegoSet = new LegoSet()
+            var testContent = new AppriseApiNotifyContent()
             {
-                Name = "Test Lego Set",
-                ExtendedSetNumber = "12345-1",
+                Body = "Test Notification Content",
             };
+            var testNotification = Substitute.For<LegoSetBatchNotification>();
+            testNotification.GetContent().Returns(testContent);
 
             var mockApiClient = Substitute.For<IAppriseApiClient>();
             mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Any<AppriseApiNotifyContent>()).Returns(Task.CompletedTask);
 
             var notifier = new AppriseNotifier(mockApiClient, "testkey");
             notifier.NotificationCooldownTime = TimeSpan.Zero;
-            var notifiedSetNumbers = await notifier.SendNewSetsNotificationAsync(new List<LegoSet>() { testLegoSet });
-            Assert.HasCount(1, notifiedSetNumbers);
-            Assert.Contains(testLegoSet.ExtendedSetNumber, notifiedSetNumbers);
+            var success = await notifier.SendLegoSetBatchNotificationAsync(testNotification);
+            Assert.IsTrue(success);
 
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => r.Body.Contains(testLegoSet.Name)));
+            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(testContent));
         }
 
         [TestMethod]
-        public async Task TestNewSetsNotificationBadAttachmentRetryAsync()
+        public async Task TestNotificationBadAttachmentRetryAsync()
         {
-            var testLegoSet = new LegoSet()
+            var testContent = new AppriseApiNotifyContent()
             {
-                Name = "Test Lego Set",
-                ExtendedSetNumber = "12345-1",
-                ImageUrl = "ruhroh",
+                Body = "Test Notification Content",
+                Attachments = new List<string>() { "ruhroh" },
             };
+            var testNotification = Substitute.For<LegoSetBatchNotification>();
+            testNotification.GetContent().Returns(testContent);
 
             var mockApiClient = Substitute.For<IAppriseApiClient>();
             mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Is<AppriseApiNotifyContent>(r => r.Attachments.Count > 0)).
@@ -48,104 +49,15 @@ namespace LegoSetNotifier.Test
 
             var notifier = new AppriseNotifier(mockApiClient, "testkey");
             notifier.NotificationCooldownTime = TimeSpan.Zero;
-            var notifiedSetNumbers = await notifier.SendNewSetsNotificationAsync(new List<LegoSet>() { testLegoSet });
-            Assert.HasCount(1, notifiedSetNumbers);
-            Assert.Contains(testLegoSet.ExtendedSetNumber, notifiedSetNumbers);
+            var success = await notifier.SendLegoSetBatchNotificationAsync(testNotification);
+            Assert.IsTrue(success);
 
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => r.Attachments.Count == 0));
-        }
-
-        [TestMethod]
-        public async Task TestNewSetsNotificationMultipleSetsAsync()
-        {
-            var testLegoSet1 = new LegoSet()
-            {
-                Name = "Test Lego Set 1",
-                ExtendedSetNumber = "00001-1",
-            };
-            var testLegoSet2 = new LegoSet()
-            {
-                Name = "Test Lego Set 2",
-                ExtendedSetNumber = "00002-1",
-            };
-
-            var mockApiClient = Substitute.For<IAppriseApiClient>();
-            mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Any<AppriseApiNotifyContent>()).Returns(Task.CompletedTask);
-
-            var notifier = new AppriseNotifier(mockApiClient, "testkey");
-            notifier.NotificationCooldownTime = TimeSpan.Zero;
-            var notifiedSetNumbers = await notifier.SendNewSetsNotificationAsync(new List<LegoSet>() { testLegoSet1, testLegoSet2 });
-            Assert.HasCount(2, notifiedSetNumbers);
-            Assert.Contains(testLegoSet1.ExtendedSetNumber, notifiedSetNumbers);
-            Assert.Contains(testLegoSet2.ExtendedSetNumber, notifiedSetNumbers);
-
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => r.Body.Contains(testLegoSet1.Name) && r.Body.Contains(testLegoSet2.Name)));
-        }
-
-        [TestMethod]
-        public async Task TestNewSetsNotificationMoreThanOneBatchAsync()
-        {
-            // To induce unusually-large notification bodies, inflate the sets' Name strings.
-            var largeStringLength = (AppriseNotifier.MaxBodyChars / 3) + 1;
-            var testLegoSet1 = new LegoSet()
-            {
-                Name = StringGenerator.Generate(largeStringLength),
-                ExtendedSetNumber = "00001-1",
-            };
-            var testLegoSet2 = new LegoSet()
-            {
-                Name = StringGenerator.Generate(largeStringLength),
-                ExtendedSetNumber = "00002-1",
-            };
-            var testLegoSet3 = new LegoSet()
-            {
-                Name = StringGenerator.Generate(largeStringLength),
-                ExtendedSetNumber = "00003-1",
-            };
-            var testLegoSet4 = new LegoSet()
-            {
-                Name = StringGenerator.Generate(largeStringLength),
-                ExtendedSetNumber = "00004-1",
-            };
-
-            var mockApiClient = Substitute.For<IAppriseApiClient>();
-            mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Any<AppriseApiNotifyContent>()).Returns(Task.CompletedTask);
-
-            var notifier = new AppriseNotifier(mockApiClient, "testkey");
-            notifier.NotificationCooldownTime = TimeSpan.Zero;
-            var notifiedSetNumbers = await notifier.SendNewSetsNotificationAsync(new List<LegoSet>() { testLegoSet1, testLegoSet2, testLegoSet3, testLegoSet4 });
-            Assert.HasCount(4, notifiedSetNumbers);
-            Assert.Contains(testLegoSet1.ExtendedSetNumber, notifiedSetNumbers);
-            Assert.Contains(testLegoSet2.ExtendedSetNumber, notifiedSetNumbers);
-            Assert.Contains(testLegoSet3.ExtendedSetNumber, notifiedSetNumbers);
-            Assert.Contains(testLegoSet4.ExtendedSetNumber, notifiedSetNumbers);
-
-            // Assumption: the test data's content lengths should result in two batches (two notifications).
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => r.Body.Contains(testLegoSet1.Name) && r.Body.Contains(testLegoSet2.Name)));
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => r.Body.Contains(testLegoSet3.Name) && r.Body.Contains(testLegoSet4.Name)));
-        }
-
-        [TestMethod]
-        public async Task TestNewSetsNotificationContentTooBigAsync()
-        {
-            var largeStringLength = AppriseNotifier.MaxBodyChars * 2;
-            var testLegoSet = new LegoSet()
-            {
-                Name = StringGenerator.Generate(largeStringLength),
-                ExtendedSetNumber = "12345-1",
-            };
-
-            var mockApiClient = Substitute.For<IAppriseApiClient>();
-            mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Any<AppriseApiNotifyContent>()).Returns(Task.CompletedTask);
-
-            var notifier = new AppriseNotifier(mockApiClient, "testkey");
-            notifier.NotificationCooldownTime = TimeSpan.Zero;
-            var notifiedSetNumbers = await notifier.SendNewSetsNotificationAsync(new List<LegoSet>() { testLegoSet });
-            Assert.HasCount(1, notifiedSetNumbers);
-            Assert.Contains(testLegoSet.ExtendedSetNumber, notifiedSetNumbers);
-
-            // The oversized data should result in a notification, but without that oversized data.
-            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r => !r.Body.Contains(testLegoSet.Name)));
+            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r =>
+                r.Type.Equals("failure", StringComparison.Ordinal) &&
+                r.Body.Contains("Bad Attachment", StringComparison.Ordinal)));
+            await mockApiClient.Received().NotifyAsync("testkey", Arg.Is<AppriseApiNotifyContent>(r =>
+                r.Body.Equals(testContent.Body, StringComparison.Ordinal) &&
+                r.Attachments.Count == 0));
         }
 
         [TestMethod]

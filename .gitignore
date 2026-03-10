@@ -1,5 +1,6 @@
 **/Properties/launchSettings.json
 
+notifications
 publish_output
 
 ## Ignore Visual Studio temporary files, build results, and

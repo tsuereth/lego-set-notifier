@@ -5,6 +5,14 @@ namespace LegoSetNotifier.AppriseApi
 {
     public class AppriseApiClient : IAppriseApiClient, IDisposable
     {
+        // Apprise email notifications have a body size limit of 32k characters.
+        // Source: https://appriseit.com/services/email/
+        public const uint MaxBodyChars = 32768;
+
+        // NOTE: The APPRISE_MAX_ATTACHMENTS setting is configurable by an Apprise API service.
+        // This implementation assumes the target service uses a default initial setting value.
+        public const uint MaxAttachments = 6;
+
         private readonly string baseUrl;
 
         private HttpClient httpClient;
