@@ -5,7 +5,7 @@ namespace LegoSetNotifier.RebrickableData
 {
     public class LegoSet
     {
-        private readonly Regex PurchaseableSetNumberPattern = new Regex(@"^[0-9]{5}$", RegexOptions.Compiled);
+        private static readonly Regex PurchaseableSetNumberPattern = new Regex(@"^[0-9]{5}$", RegexOptions.Compiled);
 
         [JsonPropertyName("ExtendedSetNumber")]
         public string ExtendedSetNumber { get; set; } = string.Empty;
