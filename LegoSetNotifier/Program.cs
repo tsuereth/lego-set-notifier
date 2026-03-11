@@ -68,7 +68,7 @@ namespace LegoSetNotifier
 
             try
             {
-                var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(dataFilePath);
+                var seenData = await PreviouslySeenDataJsonFile.FromFilePathAsync(logger, dataFilePath);
 
                 using (var dataClient = new RebrickableDataClient())
                 {
