@@ -63,7 +63,7 @@ namespace LegoSetNotifier
             await this.seenData.UpdateSetsAsync(seenSets);
         }
 
-        public async Task SendNewSetNotificationsAsync()
+        public async Task SendNotificationsAsync(int releaseYearForNewSets)
         {
             if (this.notifier == null)
             {
@@ -71,14 +71,38 @@ namespace LegoSetNotifier
             }
 
             var seenSets = await this.seenData.GetSetsAsync();
-            var notYetNotifiedSets = seenSets.Select(p => p.Value).Where(s => s.IsPurchaseableSet() && s.NotifiedAtTime == null);
+            var notYetNotifiedSets = seenSets.Select(p => p.Value).Where(s => s.NotifiedAtTime == null);
             if (!notYetNotifiedSets.Any())
             {
                 return;
             }
 
-            var notifications = LegoSetBatchNotification.BuildNotifications(this.notifier, notYetNotifiedSets);
-            foreach (var notification in notifications)
+            var oldPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear < releaseYearForNewSets && s.IsPurchaseableSet());
+            await this.BuildAndSendLegoSetNotificationsAsync(
+                new LegoSetBatchNotification.NotificationSettings() { Label = "Old Purchaseable Sets", IncludeAttachments = false },
+                oldPurchaseableSets);
+
+            var oldNonPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear < releaseYearForNewSets && !s.IsPurchaseableSet());
+            await this.BuildAndSendLegoSetNotificationsAsync(
+                new LegoSetBatchNotification.NotificationSettings() { Label = "Old Non-Purchaseable Sets", IncludeAttachments = false },
+                oldNonPurchaseableSets);
+
+            var newPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear >= releaseYearForNewSets && s.IsPurchaseableSet());
+            await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NewLegoSetNotificationSettings, newPurchaseableSets);
+
+            var newNonPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear >= releaseYearForNewSets && !s.IsPurchaseableSet());
+            await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NonPurchaseableLegoSetNotificationSettings, newNonPurchaseableSets);
+        }
+
+        private async Task BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NotificationSettings settings, IEnumerable<RebrickableData.LegoSet> legoSets)
+        {
+            if (this.notifier == null)
+            {
+                return;
+            }
+
+            var batches = LegoSetBatchNotification.BuildNotifications(this.notifier, settings, legoSets);
+            foreach (var notification in batches)
             {
                 try
                 {
@@ -90,22 +114,24 @@ namespace LegoSetNotifier
                         await this.seenData.MarkSetsAsNotifiedAsync(notifiedAtTime, notifiedSetNumbers);
 
                         this.logger.LogInformation(
-                            "Sent notification(s) of {NumberOfNotifiedSets} new sets as of {NotifiedAtTime}",
+                            "Sent a {NotificationLabel} notification for {NumberOfSets} sets as of {NotifiedAtTime}",
+                            settings.Label,
                             notifiedSetNumbers.Count,
                             notifiedAtTime);
                     }
                     else
                     {
                         this.logger.LogError(
-                            "Failed to send notification(s) for {NumberOfNotYetNotifiedSets} new sets",
-                            notYetNotifiedSets.Count());
+                            "Failed to send a {NotificationLabel} notification for {NumberOfSets} sets",
+                            settings.Label,
+                            notification.GetLegoSetNumbers().Count);
                     }
                 }
                 catch (Exception ex)
                 {
-                    const string exceptionErrorMessage = "Exception sending notification(s) of new sets";
+                    const string exceptionErrorMessage = "Exception sending a notification";
                     this.logger.LogError(ex, exceptionErrorMessage);
-                    await notifier.SendErrorNotificationAsync($"An exception occurred while attempting to send notification(s) of {notYetNotifiedSets.Count()} new sets", ex);
+                    await notifier.SendErrorNotificationAsync($"An exception occurred while attempting to send a {settings.Label} notification for {notification.GetLegoSetNumbers().Count} sets", ex);
                 }
             }
         }

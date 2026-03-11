@@ -77,7 +77,7 @@ namespace LegoSetNotifier
 
                     if (notifier != null)
                     {
-                        await legoSetNotifier.SendNewSetNotificationsAsync();
+                        await legoSetNotifier.SendNotificationsAsync(DateTimeOffset.UtcNow.Year);
                     }
                 }
             }

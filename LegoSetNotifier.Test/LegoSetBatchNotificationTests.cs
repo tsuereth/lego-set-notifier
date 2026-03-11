@@ -20,7 +20,10 @@ namespace LegoSetNotifier.Test
                 ImageUrl = "whatever",
             };
 
-            var batches = LegoSetBatchNotification.BuildNotifications(mockNotifier, new List<LegoSet>() { testLegoSet });
+            var batches = LegoSetBatchNotification.BuildNotifications(
+                mockNotifier,
+                LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                new List<LegoSet>() { testLegoSet });
 
             Assert.HasCount(1, batches);
 
@@ -51,7 +54,10 @@ namespace LegoSetNotifier.Test
                 ImageUrl = "attachment 2",
             };
 
-            var batches = LegoSetBatchNotification.BuildNotifications(mockNotifier, new List<LegoSet>() { testLegoSet1, testLegoSet2 });
+            var batches = LegoSetBatchNotification.BuildNotifications(
+                mockNotifier,
+                LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                new List<LegoSet>() { testLegoSet1, testLegoSet2 });
 
             Assert.HasCount(2, batches);
 
@@ -84,7 +90,10 @@ namespace LegoSetNotifier.Test
 
             Assert.ThrowsExactly<InvalidDataException>(() =>
             {
-                LegoSetBatchNotification.BuildNotifications(mockNotifier, new List<LegoSet>() { testLegoSet });
+                LegoSetBatchNotification.BuildNotifications(
+                    mockNotifier,
+                    LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                    new List<LegoSet>() { testLegoSet });
             });
         }
     }

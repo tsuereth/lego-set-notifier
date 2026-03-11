@@ -5,6 +5,24 @@ namespace LegoSetNotifier
 {
     public class LegoSetBatchNotification
     {
+        public class NotificationSettings
+        {
+            public required string Label { get; set; }
+            public required bool IncludeAttachments { get; set; }
+        }
+
+        public static readonly NotificationSettings NewLegoSetNotificationSettings = new NotificationSettings()
+        {
+            Label = "New Lego Sets",
+            IncludeAttachments = true,
+        };
+
+        public static readonly NotificationSettings NonPurchaseableLegoSetNotificationSettings = new NotificationSettings()
+        {
+            Label = "Non-Purchaseable Lego Sets",
+            IncludeAttachments = false,
+        };
+
         class BatchContext
         {
             public required uint FirstLegoSetIndex;
@@ -39,13 +57,13 @@ namespace LegoSetNotifier
         // Default constructor for testing with NSubstitute; outside of tests, this object will be invalid!
         public LegoSetBatchNotification() { }
 
-        private LegoSetBatchNotification(BatchContext context, StringBuilder bodyBuilder, List<string> attachments)
+        private LegoSetBatchNotification(NotificationSettings settings, BatchContext context, StringBuilder bodyBuilder, List<string> attachments)
         {
             this.Context = context;
 
             this.NotificationContent = new AppriseApiNotifyContent()
             {
-                Title = $"Lego Set Notifier: {this.Context.LegoSetNumbers.Count} new LEGO sets",
+                Title = $"Lego Set Notifier: {this.Context.LegoSetNumbers.Count} {settings.Label}",
                 Format = "markdown",
                 Body = bodyBuilder.ToString(),
                 Attachments = attachments,
@@ -58,7 +76,7 @@ namespace LegoSetNotifier
             }
         }
 
-        public static IEnumerable<LegoSetBatchNotification> BuildNotifications(INotifier notifier, IEnumerable<RebrickableData.LegoSet> legoSets)
+        public static IEnumerable<LegoSetBatchNotification> BuildNotifications(INotifier notifier, NotificationSettings settings, IEnumerable<RebrickableData.LegoSet> legoSets)
         {
             var maxBodyChars = notifier.GetMaxNotificationBodyChars();
             var maxAttachments = notifier.GetMaxNotificationAttachments();
@@ -101,10 +119,10 @@ namespace LegoSetNotifier
 
                 if (
                     ((batchBodyBuilder.Length + legoSetBodyContent.Length) >= maxBodyChars) ||
-                    (!string.IsNullOrEmpty(legoSet.ImageUrl) && (batchAttachments.Count == maxAttachments)))
+                    (settings.IncludeAttachments && !string.IsNullOrEmpty(legoSet.ImageUrl) && (batchAttachments.Count == maxAttachments)))
                 {
                     // This can't be added to the current batch; flush that batch, and start building a new one.
-                    batches.Add(new LegoSetBatchNotification(batchContext, batchBodyBuilder, batchAttachments));
+                    batches.Add(new LegoSetBatchNotification(settings, batchContext, batchBodyBuilder, batchAttachments));
 
                     // Reset the currently-building batch state.
                     batchContext = new BatchContext()
@@ -121,7 +139,7 @@ namespace LegoSetNotifier
                 batchContext.LastLegoSetIndex = legoSetIndex;
                 batchContext.LegoSetNumbers.Add(legoSet.ExtendedSetNumber);
                 batchBodyBuilder.Append(legoSetBodyContent);
-                if (!string.IsNullOrEmpty(legoSet.ImageUrl))
+                if (settings.IncludeAttachments && !string.IsNullOrEmpty(legoSet.ImageUrl))
                 {
                     batchAttachments.Add(legoSet.ImageUrl);
                 }
@@ -131,7 +149,7 @@ namespace LegoSetNotifier
 
             if (batchContext.LegoSetNumbers.Count > 0)
             {
-                batches.Add(new LegoSetBatchNotification(batchContext, batchBodyBuilder, batchAttachments));
+                batches.Add(new LegoSetBatchNotification(settings, batchContext, batchBodyBuilder, batchAttachments));
             }
 
             return batches;
