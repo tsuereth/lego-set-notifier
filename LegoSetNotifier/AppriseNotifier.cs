@@ -57,7 +57,7 @@ namespace LegoSetNotifier
 
         public async Task<bool> SendLegoSetBatchNotificationAsync(LegoSetBatchNotification notification)
         {
-            var notificationContent = notification.GetContent();
+            var notificationContent = notification.GetNotificationContent();
             try
             {
                 return await this.SendThrottledNotificationAsync(notificationContent);

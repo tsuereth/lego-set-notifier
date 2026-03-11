@@ -27,8 +27,8 @@ namespace LegoSetNotifier.Test
             var batch1 = batches.ElementAt(0);
             Assert.HasCount(1, batch1.GetLegoSetNumbers());
             Assert.Contains(testLegoSet.ExtendedSetNumber, batch1.GetLegoSetNumbers());
-            Assert.Contains(testLegoSet.Name, batch1.GetContent().Body);
-            Assert.Contains(testLegoSet.ImageUrl, batch1.GetContent().Attachments);
+            Assert.Contains(testLegoSet.Name, batch1.GetNotificationContent().Body);
+            Assert.Contains(testLegoSet.ImageUrl, batch1.GetNotificationContent().Attachments);
         }
 
         [TestMethod]
@@ -58,14 +58,14 @@ namespace LegoSetNotifier.Test
             var batch1 = batches.ElementAt(0);
             Assert.HasCount(1, batch1.GetLegoSetNumbers());
             Assert.Contains(testLegoSet1.ExtendedSetNumber, batch1.GetLegoSetNumbers());
-            Assert.Contains(testLegoSet1.Name, batch1.GetContent().Body);
-            Assert.Contains(testLegoSet1.ImageUrl, batch1.GetContent().Attachments);
+            Assert.Contains(testLegoSet1.Name, batch1.GetNotificationContent().Body);
+            Assert.Contains(testLegoSet1.ImageUrl, batch1.GetNotificationContent().Attachments);
 
             var batch2 = batches.ElementAt(1);
             Assert.HasCount(1, batch2.GetLegoSetNumbers());
             Assert.Contains(testLegoSet2.ExtendedSetNumber, batch2.GetLegoSetNumbers());
-            Assert.Contains(testLegoSet2.Name, batch2.GetContent().Body);
-            Assert.Contains(testLegoSet2.ImageUrl, batch2.GetContent().Attachments);
+            Assert.Contains(testLegoSet2.Name, batch2.GetNotificationContent().Body);
+            Assert.Contains(testLegoSet2.ImageUrl, batch2.GetNotificationContent().Attachments);
         }
 
         [TestMethod]

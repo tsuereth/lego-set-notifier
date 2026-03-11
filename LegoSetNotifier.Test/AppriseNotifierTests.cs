@@ -17,7 +17,7 @@ namespace LegoSetNotifier.Test
                 Body = "Test Notification Content",
             };
             var testNotification = Substitute.For<LegoSetBatchNotification>();
-            testNotification.GetContent().Returns(testContent);
+            testNotification.GetNotificationContent().Returns(testContent);
 
             var mockApiClient = Substitute.For<IAppriseApiClient>();
             mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Any<AppriseApiNotifyContent>()).Returns(Task.CompletedTask);
@@ -39,7 +39,7 @@ namespace LegoSetNotifier.Test
                 Attachments = new List<string>() { "ruhroh" },
             };
             var testNotification = Substitute.For<LegoSetBatchNotification>();
-            testNotification.GetContent().Returns(testContent);
+            testNotification.GetNotificationContent().Returns(testContent);
 
             var mockApiClient = Substitute.For<IAppriseApiClient>();
             mockApiClient.NotifyAsync(Arg.Any<string>(), Arg.Is<AppriseApiNotifyContent>(r => r.Attachments.Count > 0)).

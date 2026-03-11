@@ -48,7 +48,7 @@ namespace LegoSetNotifier
 
         public async Task<bool> SendLegoSetBatchNotificationAsync(LegoSetBatchNotification notification)
         {
-            return await this.WriteNotificationContentAsFileAsync(notification.GetContent());
+            return await this.WriteNotificationContentAsFileAsync(notification.GetNotificationContent());
         }
 
         private async Task<bool> WriteNotificationContentAsFileAsync(AppriseApi.AppriseApiNotifyContent content)
