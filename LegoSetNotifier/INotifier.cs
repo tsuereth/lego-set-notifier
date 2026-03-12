@@ -2,8 +2,12 @@
 {
     public interface INotifier
     {
+        public uint GetMaxNotificationBodyChars();
+
+        public uint GetMaxNotificationAttachments();
+
         public Task<bool> SendErrorNotificationAsync(string message, Exception? ex);
 
-        public Task<HashSet<string>> SendNewSetsNotificationAsync(IEnumerable<RebrickableData.LegoSet> legoSets);
+        public Task<bool> SendLegoSetBatchNotificationAsync(LegoSetBatchNotification notification);
     }
 }

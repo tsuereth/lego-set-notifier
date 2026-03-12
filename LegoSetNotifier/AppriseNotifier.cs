@@ -11,14 +11,6 @@ namespace LegoSetNotifier
 {
     public class AppriseNotifier : INotifier
     {
-        // Apprise email notifications have a body size limit of 32k characters.
-        // Source: https://appriseit.com/services/email/
-        public const uint MaxBodyChars = 32768;
-
-        // NOTE: The APPRISE_MAX_ATTACHMENTS setting is configurable by an Apprise API service.
-        // This implementation assumes the target service uses a default initial setting value.
-        public const uint MaxAttachments = 6;
-
         // This implementation ASSUMES notifications will be sent to a Gmail inbox.
         // Gmail limits a recipient to receiving at most 60 messages per minute.
         // Source: https://support.google.com/a/answer/1366776
@@ -41,6 +33,16 @@ namespace LegoSetNotifier
             this.notifyKey = notifyKey;
         }
 
+        public uint GetMaxNotificationBodyChars()
+        {
+            return AppriseApiClient.MaxBodyChars;
+        }
+
+        public uint GetMaxNotificationAttachments()
+        {
+            return AppriseApiClient.MaxAttachments;
+        }
+
         public async Task<bool> SendErrorNotificationAsync(string message, Exception? ex)
         {
             var notification = new AppriseApiNotifyContent()
@@ -53,87 +55,34 @@ namespace LegoSetNotifier
             return await this.SendThrottledNotificationAsync(notification);
         }
 
-        public async Task<HashSet<string>> SendNewSetsNotificationAsync(IEnumerable<RebrickableData.LegoSet> legoSets)
+        public async Task<bool> SendLegoSetBatchNotificationAsync(LegoSetBatchNotification notification)
         {
-            var successfullyNotifiedSetNumbers = new HashSet<string>();
-
-            // Build notifications out of sets in batches, each batch within the maximum size of a notification body.
-            var notificationSetNumbers = new HashSet<string>();
-            var notificationBodyBuilder = new StringBuilder();
-            var notificationAttachments = new List<string>();
-            foreach (var legoSet in legoSets)
-            {
-                var legoSetBodyContent = $"\n- {legoSet.ExtendedSetNumber} {legoSet.Name} -- [Rebrickable]({legoSet.GetRebrickableUrl()}), [LEGO Shop]({legoSet.GetLegoShopUrl()})";
-                if (legoSetBodyContent.Length >= MaxBodyChars)
-                {
-                    await this.SendErrorNotificationAsync($"Notification for set {legoSet.ExtendedSetNumber} cannot be sent, body size {legoSetBodyContent.Length} exceeds maximum {MaxBodyChars}", null);
-
-                    // Assume that this is as good of a notification as this set is ever gonna get.
-                    successfullyNotifiedSetNumbers.Add(legoSet.ExtendedSetNumber);
-                    continue;
-                }
-                else if (
-                    ((notificationBodyBuilder.Length + legoSetBodyContent.Length) >= MaxBodyChars) ||
-                    (!string.IsNullOrEmpty(legoSet.ImageUrl) && (notificationAttachments.Count == MaxAttachments)))
-                {
-                    // This can't be added to the current batch; flush that batch, and start building a new one.
-                    var batchSuccess = await this.SendBatchedSetsNotificationAsync(notificationSetNumbers, notificationBodyBuilder, notificationAttachments);
-                    if (batchSuccess)
-                    {
-                        successfullyNotifiedSetNumbers.UnionWith(notificationSetNumbers);
-                    }
-
-                    // Reset the currently-building notification state.
-                    notificationSetNumbers.Clear();
-                    notificationBodyBuilder.Clear();
-                    notificationAttachments.Clear();
-                }
-
-                notificationSetNumbers.Add(legoSet.ExtendedSetNumber);
-                notificationBodyBuilder.Append(legoSetBodyContent);
-                if (!string.IsNullOrEmpty(legoSet.ImageUrl))
-                {
-                    notificationAttachments.Add(legoSet.ImageUrl);
-                }
-            }
-
-            if (notificationSetNumbers.Count > 0)
-            {
-                var batchSuccess = await this.SendBatchedSetsNotificationAsync(notificationSetNumbers, notificationBodyBuilder, notificationAttachments);
-                if (batchSuccess)
-                {
-                    successfullyNotifiedSetNumbers.UnionWith(notificationSetNumbers);
-                }
-            }
-
-            return successfullyNotifiedSetNumbers;
-        }
-
-        private async Task<bool> SendBatchedSetsNotificationAsync(HashSet<string> setNumbers, StringBuilder bodyBuilder, List<string> attachments)
-        {
-            var notification = new AppriseApiNotifyContent()
-            {
-                Title = $"{setNumbers.Count} new LEGO sets",
-                Format = "markdown",
-                Body = bodyBuilder.ToString(),
-                Attachments = attachments,
-            };
-
+            var notificationContent = notification.GetNotificationContent();
             try
             {
-                return await this.SendThrottledNotificationAsync(notification);
+                return await this.SendThrottledNotificationAsync(notificationContent);
             }
             catch (AppriseApiException ex) when (ex.ErrorMessage.Equals("Bad Attachment", StringComparison.Ordinal))
             {
                 // A very special case: if the notification failed due to "Bad Attachment" then retry without attachments.
-                notification.Body += "\n\nA bad-attachment error was encountered for one or more attachments:";
-                foreach (var attachment in notification.Attachments)
+                // But FIRST, send an error notification to indicate this failure.
+                var setNumbersString = string.Join(", ", notification.GetLegoSetNumbers());
+                var attachmentErrorNotification = new AppriseApiNotifyContent()
                 {
-                    notification.Body += $"\n- {attachment}";
+                    Type = "failure",
+                    Title = $"Lego Set Batch Notification error: Bad Attachment(s)",
+                    Body = $"Error {ex.ErrorMessage} from Apprise API, will retry with attachments stripped.\n\n",
+                };
+                foreach (var attachment in notificationContent.Attachments)
+                {
+                    attachmentErrorNotification.Body += $"\n- {attachment}";
                 }
+                attachmentErrorNotification.Body += $"Affected set numbers: {setNumbersString}\n\n{ex}\n\n";
+                await this.SendThrottledNotificationAsync(attachmentErrorNotification);
 
-                notification.Attachments.Clear();
-                return await this.SendThrottledNotificationAsync(notification);
+                // Now, retry the original notification without attachments.
+                notificationContent.Attachments.Clear();
+                return await this.SendThrottledNotificationAsync(notificationContent);
             }
         }
 

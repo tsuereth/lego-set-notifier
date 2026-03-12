@@ -8,6 +8,6 @@
 
         public Task UpdateSetsAsync(Dictionary<string, PreviouslySeenLegoSet> legoSets);
 
-        public Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, HashSet<string> legoSetNumbers);
+        public Task MarkSetsAsNotifiedAsync(DateTimeOffset notifiedAtTime, ISet<string> legoSetNumbers);
     }
 }
