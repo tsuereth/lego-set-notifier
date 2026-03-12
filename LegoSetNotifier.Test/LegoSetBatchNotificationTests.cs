@@ -22,7 +22,7 @@ namespace LegoSetNotifier.Test
 
             var batches = LegoSetBatchNotification.BuildNotifications(
                 mockNotifier,
-                LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                LegoSetBatchNotification.FullDetailSettings("Test Notifications"),
                 new List<LegoSet>() { testLegoSet });
 
             Assert.HasCount(1, batches);
@@ -56,7 +56,7 @@ namespace LegoSetNotifier.Test
 
             var batches = LegoSetBatchNotification.BuildNotifications(
                 mockNotifier,
-                LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                LegoSetBatchNotification.FullDetailSettings("Test Notifications"),
                 new List<LegoSet>() { testLegoSet1, testLegoSet2 });
 
             Assert.HasCount(2, batches);
@@ -92,7 +92,7 @@ namespace LegoSetNotifier.Test
             {
                 LegoSetBatchNotification.BuildNotifications(
                     mockNotifier,
-                    LegoSetBatchNotification.NewLegoSetNotificationSettings,
+                    LegoSetBatchNotification.FullDetailSettings("Test Notifications"),
                     new List<LegoSet>() { testLegoSet });
             });
         }

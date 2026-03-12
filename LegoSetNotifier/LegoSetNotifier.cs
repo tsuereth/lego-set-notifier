@@ -10,6 +10,8 @@ namespace LegoSetNotifier
         private readonly IRebrickableDataClient dataClient;
         private readonly INotifier? notifier;
 
+        private bool isInitializingSeenData = false;
+
         public LegoSetNotifier(
             ILogger logger,
             IPreviouslySeenData seenData,
@@ -33,6 +35,11 @@ namespace LegoSetNotifier
             }
 
             var seenSets = await this.seenData.GetSetsAsync();
+            if (seenSets.Count == 0)
+            {
+                this.logger.LogInformation("Seen data is empty, will initialize it with from-scratch notification settings");
+                this.isInitializingSeenData = true;
+            }
 
             var newSetsCount = 0;
             foreach (var extendedSetNumber in liveDataSets.Keys)
@@ -77,21 +84,39 @@ namespace LegoSetNotifier
                 return;
             }
 
-            var oldPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear < releaseYearForNewSets && s.IsPurchaseableSet());
-            await this.BuildAndSendLegoSetNotificationsAsync(
-                new LegoSetBatchNotification.NotificationSettings() { Label = "Old Purchaseable Sets", IncludeAttachments = false },
-                oldPurchaseableSets);
-
-            var oldNonPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear < releaseYearForNewSets && !s.IsPurchaseableSet());
-            await this.BuildAndSendLegoSetNotificationsAsync(
-                new LegoSetBatchNotification.NotificationSettings() { Label = "Old Non-Purchaseable Sets", IncludeAttachments = false },
-                oldNonPurchaseableSets);
-
+            var oldOrNonPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear < releaseYearForNewSets || !s.IsPurchaseableSet());
             var newPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear >= releaseYearForNewSets && s.IsPurchaseableSet());
-            await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NewLegoSetNotificationSettings, newPurchaseableSets);
 
-            var newNonPurchaseableSets = notYetNotifiedSets.Where(s => s.ReleaseYear >= releaseYearForNewSets && !s.IsPurchaseableSet());
-            await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NonPurchaseableLegoSetNotificationSettings, newNonPurchaseableSets);
+            if (this.isInitializingSeenData)
+            {
+                // Older sets, and newer non-purchaseable sets, should be notified in a simple summary.
+                // Newer and purchaseable sets will be collected in digest notifications.
+
+                if (oldOrNonPurchaseableSets.Any())
+                {
+                    await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.SummaryOnlySettings("Old or Non-Purchaseable Sets (Initialization Summary)"), oldOrNonPurchaseableSets);
+                }
+
+                if (newPurchaseableSets.Any())
+                {
+                    await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.DigestSettings($"New Sets (Initialization Digest)"), newPurchaseableSets);
+                }
+            }
+            else
+            {
+                // Older sets, and newer non-purchaseable sets, should be notified in limited digests.
+                // Newer and purchaseable sets will be included in full-detail notifications with image attachments.
+
+                if (oldOrNonPurchaseableSets.Any())
+                {
+                    await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.DigestSettings("Old or Non-Purchaseable Sets"), oldOrNonPurchaseableSets);
+                }
+
+                if (newPurchaseableSets.Any())
+                {
+                    await this.BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.FullDetailSettings("New Sets"), newPurchaseableSets);
+                }
+            }
         }
 
         private async Task BuildAndSendLegoSetNotificationsAsync(LegoSetBatchNotification.NotificationSettings settings, IEnumerable<RebrickableData.LegoSet> legoSets)

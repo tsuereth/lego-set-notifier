@@ -8,20 +8,39 @@ namespace LegoSetNotifier
         public class NotificationSettings
         {
             public required string Label { get; set; }
+            public required bool IncludeLegoSetDetails { get; set; }
             public required bool IncludeAttachments { get; set; }
         }
 
-        public static readonly NotificationSettings NewLegoSetNotificationSettings = new NotificationSettings()
+        public static NotificationSettings FullDetailSettings(string notificationLabel)
         {
-            Label = "New Lego Sets",
-            IncludeAttachments = true,
-        };
+            return new NotificationSettings()
+            {
+                Label = notificationLabel,
+                IncludeLegoSetDetails = true,
+                IncludeAttachments = true,
+            };
+        }
 
-        public static readonly NotificationSettings NonPurchaseableLegoSetNotificationSettings = new NotificationSettings()
+        public static NotificationSettings DigestSettings(string notificationLabel)
         {
-            Label = "Non-Purchaseable Lego Sets",
-            IncludeAttachments = false,
-        };
+            return new NotificationSettings()
+            {
+                Label = notificationLabel,
+                IncludeLegoSetDetails = true,
+                IncludeAttachments = false,
+            };
+        }
+
+        public static NotificationSettings SummaryOnlySettings(string notificationLabel)
+        {
+            return new NotificationSettings()
+            {
+                Label = notificationLabel,
+                IncludeLegoSetDetails = false,
+                IncludeAttachments = false,
+            };
+        }
 
         class BatchContext
         {
@@ -78,9 +97,34 @@ namespace LegoSetNotifier
 
         public static IEnumerable<LegoSetBatchNotification> BuildNotifications(INotifier notifier, NotificationSettings settings, IEnumerable<RebrickableData.LegoSet> legoSets)
         {
+            var totalCount = (uint)legoSets.Count();
+
+            if (!settings.IncludeLegoSetDetails)
+            {
+                // Shortcut the batching process, and just create a simple summary.
+                var legoSetsList = legoSets.ToList();
+
+                var summaryContext = new BatchContext()
+                {
+                    FirstLegoSetIndex = 0,
+                    LastLegoSetIndex = totalCount - 1,
+                    TotalLegoSetCount = totalCount,
+                    LegoSetNumbers = legoSetsList.Select(s => s.ExtendedSetNumber).ToHashSet(),
+                };
+
+                var purchaseableCount = legoSetsList.Where(s => s.IsPurchaseableSet()).Count();
+                var nonPurchaseableCount = totalCount - purchaseableCount;
+                var summaryBody = $"Summary: {purchaseableCount} purchaseable sets, {nonPurchaseableCount} non-purchaseable sets";
+                var summaryBuilder = new StringBuilder(summaryBody);
+
+                return new List<LegoSetBatchNotification>()
+                {
+                    new LegoSetBatchNotification(settings, summaryContext, summaryBuilder, new List<string>())
+                };
+            }
+
             var maxBodyChars = notifier.GetMaxNotificationBodyChars();
             var maxAttachments = notifier.GetMaxNotificationAttachments();
-            var totalCount = (uint)legoSets.Count();
             var batches = new List<LegoSetBatchNotification>();
 
             // Build notifications out of sets in batches, each batch within the maximum size of a notification body.
@@ -97,7 +141,7 @@ namespace LegoSetNotifier
             var legoSetIndex = 0u;
             foreach (var legoSet in legoSets)
             {
-                var legoSetBodyContent = $"- {legoSet.ExtendedSetNumber} {legoSet.Name} ({legoSet.ReleaseYear}) {legoSet.NumberOfParts} pcs -- [Rebrickable]({legoSet.GetRebrickableUrl()})";
+                var legoSetBodyContent = $"- {legoSet.ExtendedSetNumber} {legoSet.Name} ({legoSet.ReleaseYear}) -- [Rebrickable]({legoSet.GetRebrickableUrl()})";
                 if (legoSet.IsPurchaseableSet())
                 {
                     legoSetBodyContent += $", [LEGO Shop]({legoSet.GetLegoShopUrl()})";
