@@ -75,9 +75,9 @@ namespace LegoSetNotifier
                 };
                 foreach (var attachment in notificationContent.Attachments)
                 {
-                    attachmentErrorNotification.Body += $"\n- {attachment}";
+                    attachmentErrorNotification.Body += $"- {attachment}\n";
                 }
-                attachmentErrorNotification.Body += $"Affected set numbers: {setNumbersString}\n\n{ex}\n\n";
+                attachmentErrorNotification.Body += $"\nAffected set numbers: {setNumbersString}\n\n{ex}\n\n";
                 await this.SendThrottledNotificationAsync(attachmentErrorNotification);
 
                 // Now, retry the original notification without attachments.
