@@ -29,7 +29,7 @@ namespace LegoSetNotifier.Test
             var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
             await legoSetNotifier.DetectNewSetsAsync();
 
-            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l.Count == 0));
+            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l != null && l.Count == 0));
 
             await legoSetNotifier.SendNotificationsAsync(releaseYearForNewSets: 0);
 
@@ -69,14 +69,14 @@ namespace LegoSetNotifier.Test
             var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
             await legoSetNotifier.DetectNewSetsAsync();
 
-            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l.Count == 1 && l.ContainsKey(testLegoSet.ExtendedSetNumber)));
+            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l != null && l.Count == 1 && l.ContainsKey(testLegoSet.ExtendedSetNumber)));
 
             await legoSetNotifier.SendNotificationsAsync(releaseYearForNewSets: 0);
 
             await mockNotifier.DidNotReceive().SendErrorNotificationAsync(Arg.Any<string>(), Arg.Any<Exception?>());
-            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testLegoSet.ExtendedSetNumber)));
+            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testLegoSet.ExtendedSetNumber)));
 
-            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s.Contains(testLegoSet.ExtendedSetNumber)));
+            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s != null && s.Contains(testLegoSet.ExtendedSetNumber)));
 
             Assert.AreEqual(0, logger.GetLogs(LogLevel.Warning).Count());
             Assert.AreEqual(0, logger.GetLogs(LogLevel.Error).Count());
@@ -139,7 +139,7 @@ namespace LegoSetNotifier.Test
             var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
             await legoSetNotifier.DetectNewSetsAsync();
 
-            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l.Count == 1 && l.ContainsKey(testLegoSet.ExtendedSetNumber)));
+            await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(l => l != null && l.Count == 1 && l.ContainsKey(testLegoSet.ExtendedSetNumber)));
 
             await legoSetNotifier.SendNotificationsAsync(releaseYearForNewSets: 0);
 
@@ -192,18 +192,18 @@ namespace LegoSetNotifier.Test
             var mockNotifier = Substitute.For<INotifier>();
             mockNotifier.GetMaxNotificationBodyChars().Returns(AppriseApiClient.MaxBodyChars);
             mockNotifier.GetMaxNotificationAttachments().Returns(1u); // Force newly-seen sets to batch up one at a time.
-            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)))
+            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)))
                 .Returns(Task.FromResult(true));
-            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)))
+            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)))
                 .ThrowsAsync(testNotificationException);
-            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)))
+            mockNotifier.SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)))
                 .Returns(Task.FromResult(true));
 
             var legoSetNotifier = new LegoSetNotifier(logger, mockData, mockClient, mockNotifier);
             await legoSetNotifier.DetectNewSetsAsync();
 
             await mockData.Received().UpdateSetsAsync(Arg.Is<Dictionary<string, PreviouslySeenLegoSet>>(
-                l => l.Count == 5 &&
+                l => l != null && l.Count == 5 &&
                 l.ContainsKey(testPreviouslySeenLegoSets[0].ExtendedSetNumber) &&
                 l.ContainsKey(testPreviouslySeenLegoSets[1].ExtendedSetNumber) &&
                 l.ContainsKey(testNewlySeenLegoSets[2].ExtendedSetNumber) &&
@@ -212,14 +212,14 @@ namespace LegoSetNotifier.Test
 
             await legoSetNotifier.SendNotificationsAsync(releaseYearForNewSets: 0);
 
-            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)));
-            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)));
+            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)));
+            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)));
             await mockNotifier.Received().SendErrorNotificationAsync(Arg.Any<string>(), Arg.Is<Exception>(testNotificationException));
-            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)));
+            await mockNotifier.Received().SendLegoSetBatchNotificationAsync(Arg.Is<LegoSetBatchNotification>(n => n != null && n.GetLegoSetNumbers().Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)));
 
-            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s.Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)));
-            await mockData.DidNotReceive().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s.Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)));
-            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s.Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)));
+            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s != null && s.Contains(testNewlySeenLegoSets[2].ExtendedSetNumber)));
+            await mockData.DidNotReceive().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s != null && s.Contains(testNewlySeenLegoSets[3].ExtendedSetNumber)));
+            await mockData.Received().MarkSetsAsNotifiedAsync(Arg.Any<DateTimeOffset>(), Arg.Is<HashSet<string>>(s => s != null && s.Contains(testNewlySeenLegoSets[4].ExtendedSetNumber)));
 
             Assert.AreEqual(1, logger.GetLogs(LogLevel.Error).Count());
             Assert.IsInstanceOfType<HttpRequestException>(logger.GetLogs(LogLevel.Error)[0].Exception);
