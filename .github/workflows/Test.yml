@@ -5,6 +5,13 @@ on:
   pull_request:
     branches:
       - main
+  # Only run this workflow on main pushes when code relevant to the release has NOT changed.
+  # Changes to test code, documentation, et al will run this; other changes will trigger a release.
+  push:
+    branches:
+      - main
+    paths:
+      - '!LegoSetNotifier/**'
 
 jobs:
   Test:

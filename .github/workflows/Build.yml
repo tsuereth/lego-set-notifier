@@ -2,9 +2,13 @@ name: Build
 
 on:
   workflow_dispatch:
+  # Only run this workflow on main pushes when code relevant to the release has changed.
+  # Changes to test code, documentation, et al will not automatically trigger a release.
   push:
     branches:
       - main
+    paths:
+      - 'LegoSetNotifier/**'
 
 jobs:
   Build:
