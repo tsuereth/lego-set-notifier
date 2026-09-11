@@ -1,4 +1,5 @@
-﻿using LegoSetNotifier.AppriseApi;
+﻿using System.Reflection;
+using LegoSetNotifier.AppriseApi;
 using LegoSetNotifier.RebrickableData;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -13,7 +14,11 @@ namespace LegoSetNotifier
             using var loggerFactory = LoggerFactory.Create(c => c.AddSystemdConsole());
             var logger = loggerFactory.CreateLogger<Program>();
 
+            var appAssembly = Assembly.GetExecutingAssembly();
+            var appVersion = appAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "dev";
+
             var printHelp = false;
+            var printVersion = false;
             var dataFilePath = "previouslySeen.json";
             var appriseApiBaseUrl = string.Empty;
             var appriseApiConfigKey = string.Empty;
@@ -22,6 +27,7 @@ namespace LegoSetNotifier
             var options = new OptionSet()
             {
                 { "help", "Print help text", _ => printHelp = true },
+                { "version", "Print application version", _ => printVersion = true },
                 { "f|data-file=", $"Data file path, default: {dataFilePath}", o => dataFilePath = o },
                 { "a|apprise-api-baseurl=", $"Apprise API base URL, default: {appriseApiBaseUrl}", o => appriseApiBaseUrl = o },
                 { "k|apprise-api-configkey=", $"Apprise API config key, default: {appriseApiConfigKey}", o => appriseApiConfigKey = o },
@@ -32,6 +38,14 @@ namespace LegoSetNotifier
             if (printHelp)
             {
                 options.WriteOptionDescriptions(Console.Out);
+                return 0;
+            }
+            if (printVersion)
+            {
+                logger.LogInformation(
+                    "{ApplicationName} version {ApplicationVersion}",
+                    appAssembly.GetName().Name,
+                    appVersion);
                 return 0;
             }
 
