@@ -1,17 +1,26 @@
-﻿using CsvHelper.Configuration;
+﻿using CsvHelper;
 
 namespace LegoSetNotifier.RebrickableData
 {
-    public class LegoSetCsvMap : ClassMap<LegoSet>
+    [CsvRecordMap(typeof(LegoSet))]
+    public partial class LegoSetCsvMap
     {
-        public LegoSetCsvMap()
-        {
-            Map(m => m.ExtendedSetNumber).Name("set_num");
-            Map(m => m.Name).Name("name");
-            Map(m => m.ReleaseYear).Name("year");
-            Map(m => m.ThemeId).Name("theme_id");
-            Map(m => m.NumberOfParts).Name("num_parts");
-            Map(m => m.ImageUrl).Name("img_url");
-        }
+        [CsvColumn("set_num")]
+        public string ExtendedSetNumber { get; set; } = string.Empty;
+
+        [CsvColumn("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [CsvColumn("year")]
+        public int ReleaseYear { get; set; } = 0;
+
+        [CsvColumn("theme_id")]
+        public int ThemeId { get; set; } = 0;
+
+        [CsvColumn("num_parts")]
+        public int NumberOfParts { get; set; } = 0;
+
+        [CsvColumn("img_url")]
+        public string ImageUrl { get; set; } = string.Empty;
     }
 }
