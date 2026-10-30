@@ -67,9 +67,8 @@ namespace LegoSetNotifier.RebrickableData
 
             using (var bytesStream = new MemoryStream(csvBytes))
             using (var streamReader = new StreamReader(bytesStream))
-            using (var csvReader = new CsvReader(streamReader, CultureInfo.InvariantCulture))
+            using (var csvReader = CsvReader.Create(streamReader))
             {
-                csvReader.Context.RegisterClassMap<LegoSetCsvMap>();
                 var records = csvReader.GetRecords<LegoSet>();
                 return records.ToList();
             }
